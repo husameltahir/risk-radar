@@ -1,0 +1,82 @@
+{
+  "program": {
+    "name": "Project Meridian: Surge 2.0, maps and payments re-platform",
+    "vertical": "Northwind Rides",
+    "target_go_live": "2026-07-15",
+    "as_of": "2026-06-05",
+    "description": "Cross-functional program covering a new dynamic-pricing engine (Surge 2.0), a move to a third-party maps and ETA provider, and integration of a new regional payment service provider (PSP). Several external API and third-party dependencies carry SLA and rollback implications.",
+    "note": "All data below is synthetic and made up for this demo. Northwind Rides is a fictional company, and the people and vendors are fictional too."
+  },
+  "updates": [
+    {
+      "id": "U-001",
+      "source": "Slack #meridian-eng",
+      "author": "Lina (Backend Lead)",
+      "timestamp": "2026-06-05T09:12:00+04:00",
+      "text": "Heads up: the new maps and ETA provider (Mapping vendor A) is still returning 5xx on ~3% of route requests in our staging load test. Their on-call says it's a capacity issue on their side and they 'should' have more headroom by next week. We have no contractual SLA signed yet, just a draft. If this isn't fixed we cannot start the canary for Surge 2.0 because pricing depends on ETA accuracy."
+    },
+    {
+      "id": "U-002",
+      "source": "Standup notes",
+      "author": "Omar (PSP Integration)",
+      "timestamp": "2026-06-04T17:40:00+04:00",
+      "text": "Payments provider B sandbox is up. Refund webhook is flaky: about 1 in 10 refund callbacks never arrive, so our reconciliation job double-counts. Their engineers confirmed it's a known bug, fix ETA 'end of June'. That's after our go-live freeze starts (June 28). Need a decision on whether we build an idempotency/retry shim on our side."
+    },
+    {
+      "id": "U-003",
+      "source": "Jira MER-482",
+      "author": "QA Automation",
+      "timestamp": "2026-06-03T14:05:00+04:00",
+      "text": "Surge 2.0 pricing engine: regression suite at 76% pass. 14 failing cases all relate to surge caps in the Ramadan and public holiday calendar config. Product hasn't finalised the holiday multiplier table for the two new markets. Blocked on product sign-off."
+    },
+    {
+      "id": "U-004",
+      "source": "Email from Mapping vendor A",
+      "author": "Mapping vendor A, Partnerships",
+      "timestamp": "2026-06-02T11:00:00+04:00",
+      "text": "Per our last call, the mutual NDA is signed but the integration MSA and SLA (99.9% availability, P50 latency < 300ms) are still with your legal team. We cannot commit to production support tiers until the MSA is countersigned. Our standard support is best-effort until then."
+    },
+    {
+      "id": "U-005",
+      "source": "Slack #meridian-data",
+      "author": "Priya (Data/Analytics)",
+      "timestamp": "2026-06-05T08:30:00+04:00",
+      "text": "Surge 2.0 A/B dashboard is built but I'm pulling ETA from the OLD maps pipeline. If we cut over to Mapping vendor A the historical baseline breaks and we lose week-over-week comparability for the launch readout. Either we backfill (2 to 3 days of work) or the exec readout has a gap."
+    },
+    {
+      "id": "U-006",
+      "source": "Standup notes",
+      "author": "Sara (Mobile, Driver app)",
+      "timestamp": "2026-06-04T10:15:00+04:00",
+      "text": "Driver app build with the new surge UI passed internal QA. BUT iOS App Store review historically takes 3 to 5 days and we need both the Driver and Rider apps approved before go-live. We haven't submitted yet because the surge copy isn't localised for Arabic and French. The localisation vendor returns strings in ~4 working days."
+    },
+    {
+      "id": "U-007",
+      "source": "Slack #meridian-sre",
+      "author": "Tarek (SRE)",
+      "timestamp": "2026-06-05T07:50:00+04:00",
+      "text": "Rollback plan question: if Surge 2.0 misbehaves in prod, our feature flag flips pricing back to v1 in seconds, which is fine. But the PSP and maps cutovers are NOT flag-gated; they're config changes that take ~20 min to revert and need a vendor-side cache flush. So our blast radius for those two is much bigger. We should not bundle all three cutovers in one go-live window."
+    },
+    {
+      "id": "U-008",
+      "source": "Meeting: steering review",
+      "author": "PM (Product)",
+      "timestamp": "2026-06-03T16:00:00+04:00",
+      "text": "Commercial wants Surge 2.0 live before Eid for the demand peak. Eng comfort is 'July, maybe'. Finance flagged that the Payments provider B fee schedule isn't finalised, which affects unit economics modelling. Also we still don't have a named incident owner for cross-vendor outages: is it us, Mapping vendor A or Payments provider B at 3am?"
+    },
+    {
+      "id": "U-009",
+      "source": "Jira MER-501",
+      "author": "Security",
+      "timestamp": "2026-06-02T09:30:00+04:00",
+      "text": "PSP integration needs a security review (PCI scope) before prod. The review queue is 2 weeks. We submitted the threat model yesterday. If they find issues, remediation could push go-live. This is on the critical path and not currently reflected in the plan."
+    },
+    {
+      "id": "U-010",
+      "source": "Slack #meridian-eng",
+      "author": "Lina (Backend Lead)",
+      "timestamp": "2026-06-01T13:20:00+04:00",
+      "text": "Good news: load test on the pricing engine itself hit 12k req/s with P99 at 180ms, well within budget. The engine is solid. Our risk is all in the external integrations and sign-offs, not the core code."
+    }
+  ]
+}

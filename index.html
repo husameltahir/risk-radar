@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Risk Radar · LLM program risk workflow</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232c; --line:#2a3441;
+    --text:#e6edf3; --muted:#8b97a6; --accent:#5b9cff; --accent-dim:#2f5fb3; --ok:#3fb950;
+    --p1:#ff5d5d; --p2:#ff9f43; --p3:#ffd04d; --p4:#7aa2ff;
+    --risk:#ff9f43; --dep:#7aa2ff; --blocker:#ff5d5d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.5;}
+  a{color:var(--accent)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+  header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#101b2e,transparent);}
+  .topinner{max-width:1120px;margin:0 auto;padding:22px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .logo{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent-dim));
+    display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 18px rgba(91,156,255,.35)}
+  h1{font-size:20px;margin:0;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .pill{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--line);
+    padding:6px 12px;border-radius:999px;background:var(--panel)}
+  .demo-banner{background:#1a2330;border:1px solid var(--line);color:var(--muted);font-size:12.5px;
+    text-align:center;padding:7px}
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin:24px 0 18px;flex-wrap:wrap}
+  .tab{padding:9px 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);cursor:pointer;font-size:14px;font-weight:600}
+  .tab.active{background:var(--accent);color:#04130b;border-color:var(--accent)}
+  .view{display:none}.view.active{display:block}
+  /* summary cards */
+  .rag{display:flex;gap:18px;align-items:stretch;flex-wrap:wrap;margin-bottom:18px}
+  .ragbox{flex:1;min-width:220px;border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:var(--panel)}
+  .ragbox.status{display:flex;flex-direction:column;justify-content:center;min-width:160px;flex:0 0 auto}
+  .rag-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .rag-val{font-size:32px;font-weight:800;margin-top:4px}
+  .rag-val.RED{color:var(--p1)} .rag-val.AMBER{color:var(--p2)} .rag-val.GREEN{color:var(--ok)}
+  .summary{font-size:15px}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 22px}
+  .metric{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel)}
+  .metric .n{font-size:26px;font-weight:800}
+  .metric .l{font-size:12px;color:var(--muted)}
+  .metric.alert .n{color:var(--p1)}
+  /* filters */
+  .filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 16px}
+  .filters .lbl{font-size:12px;color:var(--muted);margin-right:2px}
+  .chip{font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel);color:var(--muted);cursor:pointer}
+  .chip.on{background:var(--panel2);color:var(--text);border-color:var(--accent)}
+  /* item cards */
+  .item{border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:16px 18px;
+    background:var(--panel);margin-bottom:12px}
+  .item.P1{border-left-color:var(--p1)} .item.P2{border-left-color:var(--p2)}
+  .item.P3{border-left-color:var(--p3)} .item.P4{border-left-color:var(--p4)}
+  .item-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .item-title{font-weight:700;font-size:15.5px;flex:1;min-width:200px}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.4px}
+  .badge.sev{color:#04130b}
+  .badge.P1{background:var(--p1)} .badge.P2{background:var(--p2);color:#251400}
+  .badge.P3{background:var(--p3);color:#231e00} .badge.P4{background:var(--p4);color:#04130b}
+  .badge.type{border:1px solid currentColor;background:transparent}
+  .badge.RISK{color:var(--risk)} .badge.DEPENDENCY{color:var(--dep)} .badge.BLOCKER{color:var(--blocker)}
+  .badge.tp{background:#3a2a12;color:#ffcf8a;border:1px solid #6b4a1f}
+  .meta{color:var(--muted);font-size:13px;margin-top:8px;display:flex;flex-wrap:wrap;gap:14px}
+  .meta b{color:var(--text);font-weight:600}
+  .action{margin-top:10px;font-size:14px;background:var(--panel2);border-radius:8px;padding:10px 12px}
+  .action .k{color:var(--accent);font-weight:700}
+  .sla{margin-top:8px;font-size:13px;color:#ffcf8a;background:#241a0c;border:1px solid #6b4a1f;
+    border-radius:8px;padding:9px 12px}
+  .trace{margin-top:8px;font-size:12px;color:var(--muted)}
+  .trace code{background:var(--panel2);padding:2px 6px;border-radius:5px;color:var(--accent)}
+  .conf{height:5px;border-radius:3px;background:var(--panel2);margin-top:10px;overflow:hidden}
+  .conf > i{display:block;height:100%;background:var(--accent)}
+  /* actions list */
+  .topactions{border:1px solid var(--accent-dim);border-radius:14px;padding:18px 20px;background:#0f1a2b;margin-bottom:22px}
+  .topactions h3{margin:0 0 10px;font-size:15px;color:var(--accent)}
+  .topactions ol{margin:0;padding-left:20px}.topactions li{margin:6px 0}
+  /* feed */
+  .feed{border:1px solid var(--line);border-radius:12px;padding:15px 17px;background:var(--panel);margin-bottom:11px}
+  .feed .src{font-size:12px;color:var(--accent);font-weight:700}
+  .feed .who{font-size:12px;color:var(--muted);margin-left:8px}
+  .feed .ts{float:right;font-size:11px;color:var(--muted)}
+  .feed .body{margin-top:7px;font-size:14px}
+  .feed .fid{font-size:11px;color:var(--muted);font-family:ui-monospace,monospace}
+  /* prompt + live */
+  pre.code{background:#0a0e13;border:1px solid var(--line);border-radius:12px;padding:18px;overflow:auto;
+    font-size:12.5px;color:#cdd9e5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+  textarea,input,select{width:100%;background:#0a0e13;border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:11px 13px;font-size:13.5px;font-family:inherit}
+  textarea{min-height:150px;resize:vertical;font-family:ui-monospace,monospace;font-size:12.5px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+  .row > div{flex:1;min-width:200px}
+  label.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+  button.run{background:var(--accent);color:#04130b;border:none;border-radius:10px;padding:12px 22px;
+    font-weight:800;font-size:14px;cursor:pointer}
+  button.run:disabled{opacity:.5;cursor:not-allowed}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;
+    padding:7px 13px;font-size:12.5px;cursor:pointer}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .card{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--panel);margin-bottom:16px}
+  h2.sec{font-size:16px;margin:0 0 4px}
+  .muted{color:var(--muted)}
+  .err{color:var(--p1);font-size:13px;margin-top:10px}
+  details summary{cursor:pointer;color:var(--accent);font-size:13px;margin:8px 0}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  @media(max-width:640px){.metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="demo-banner">Synthetic demo data · Northwind Rides and everyone named here are fictional</div>
+<header class="top">
+  <div class="topinner">
+    <div class="logo">🛰️</div>
+    <div>
+      <h1>Risk Radar <span class="muted" style="font-weight:400">· Northwind Rides (fictional)</span></h1>
+      <div class="sub">An LLM workflow that turns messy program updates into a scored risk register</div>
+    </div>
+    <div class="pill" id="asof">as of</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-view="radar">🛰️ Risk Radar</div>
+    <div class="tab" data-view="feed">📥 Source Feed</div>
+    <div class="tab" data-view="prompt">🧠 The Prompt</div>
+    <div class="tab" data-view="live">⚡ Run Live</div>
+    <div class="tab" data-view="about">ℹ️ How it works</div>
+  </div>
+
+  <!-- ============ RADAR ============ -->
+  <section class="view active" id="view-radar">
+    <div class="rag">
+      <div class="ragbox status">
+        <div class="rag-label">Program health</div>
+        <div class="rag-val" id="ragVal"></div>
+      </div>
+      <div class="ragbox">
+        <div class="rag-label">Executive summary</div>
+        <div class="summary" id="execSummary" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="metrics" id="metrics"></div>
+
+    <div class="topactions">
+      <h3>▶ Top 3 actions this week</h3>
+      <ol id="topActions"></ol>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:var(--risk)"></span>Risk</span>
+      <span><span class="dot" style="background:var(--dep)"></span>Dependency</span>
+      <span><span class="dot" style="background:var(--blocker)"></span>Blocker</span>
+      <span><span class="dot" style="background:#ffcf8a"></span>3rd-party / SLA / rollback</span>
+    </div>
+    <div class="filters">
+      <span class="lbl">Filter:</span>
+      <span class="chip on" data-f="all">All</span>
+      <span class="chip" data-f="P1">P1 only</span>
+      <span class="chip" data-f="BLOCKER">Blockers</span>
+      <span class="chip" data-f="thirdparty">3rd-party</span>
+      <span class="chip" data-f="golive">Affects go-live</span>
+    </div>
+    <div id="items"></div>
+  </section>
+
+  <!-- ============ FEED ============ -->
+  <section class="view" id="view-feed">
+    <p class="muted" style="font-size:14px">The raw, unstructured inputs the workflow reads: the scattered updates a program manager sorts through every morning across Slack, standups, Jira and vendor email.</p>
+    <div id="feed"></div>
+  </section>
+
+  <!-- ============ PROMPT ============ -->
+  <section class="view" id="view-prompt">
+    <h2 class="sec">The prompt</h2>
+    <p class="muted" style="font-size:14px">This single structured prompt is the core of the workflow. It forces an auditable schema, asks for an explicit <b>SLA, incident-ownership or rollback</b> note on every third-party item, and ties every flagged item to a source update so the model cannot add facts that are not in the input.</p>
+    <pre class="code" id="promptBox">loading…</pre>
+  </section>
+
+  <!-- ============ LIVE ============ -->
+  <section class="view" id="view-live">
+    <div class="card">
+      <h2 class="sec">⚡ Run the workflow on your own updates</h2>
+      <p class="muted" style="font-size:13.5px;margin-top:4px">Paste any messy project notes and run the same prompt live through the Claude API, straight from your browser. Leave the box empty to use the Northwind Rides sample.</p>
+      <div class="row">
+        <div style="flex:2">
+          <label class="fl">Raw updates</label>
+          <textarea id="liveInput" placeholder="Paste Slack messages, standup notes, Jira comments, vendor emails…"></textarea>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="fl">Provider</label>
+          <select id="provider">
+            <option value="anthropic">Anthropic (Claude)</option>
+          </select>
+        </div>
+        <div>
+          <label class="fl">Model</label>
+          <select id="model">
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6 (fast, recommended)</option>
+            <option value="claude-opus-4-8">claude-opus-4-8 (strongest)</option>
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (cheapest)</option>
+          </select>
+        </div>
+        <div>
+          <label class="fl">Anthropic API key</label>
+          <input id="apiKey" type="password" placeholder="Paste your API key" autocomplete="off" spellcheck="false" />
+          <div class="note"><b>Your key stays in this browser tab and is sent only to the model API.</b> It is held in a variable in memory, never saved, and gone when you close or reload the tab.</div>
+        </div>
+      </div>
+      <button class="run" id="runBtn">Run Risk Radar →</button>
+      <span class="ghost" id="loadSample" style="margin-left:10px">Load sample updates</span>
+      <div class="note">No key? The <b>Risk Radar</b> and <b>Source Feed</b> tabs already show a full pre-computed run, so the demo works with no setup.</div>
+      <div class="err" id="liveErr"></div>
+    </div>
+    <div id="liveResult"></div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="view" id="view-about">
+    <div class="card">
+      <h2 class="sec">How it works</h2>
+      <p style="font-size:14px">Risk Radar is a small LLM workflow built to fit a program manager's existing routines (standups, steering reviews, go-live readiness) and flag trouble early.</p>
+      <pre class="code">  Sources                 Prompt                       Output
+  ┌─────────────┐         ┌──────────────────┐         ┌────────────────────┐
+  │ Slack       │         │  Risk Radar       │         │ • RAG health        │
+  │ Standups    │ ──────▶ │  structured       │ ──────▶ │ • Risk register     │
+  │ Jira        │  raw    │  prompt + schema  │  JSON   │   (risk/dep/blocker)│
+  │ Vendor email│  text   │  (grounded,       │         │ • 3rd-party/SLA     │
+  │ Meeting notes         │   auditable)      │         │ • Owners + actions  │
+  └─────────────┘         └──────────────────┘         └────────────────────┘
+                                                         feeds dashboards,
+                                                         exec comms, decision log</pre>
+      <h2 class="sec" style="margin-top:18px">Why these design choices</h2>
+      <ul style="font-size:14px">
+        <li><b>Grounded and auditable:</b> every item traces to a <code>source_id</code>, so the PM can defend it in a steering review and the model cannot quietly make up a risk.</li>
+        <li><b>Third-party aware:</b> the schema forces an SLA, incident-ownership or rollback note for every external integration, which is where cross-organisation programs most often break.</li>
+        <li><b>Ready for decisions:</b> the output is a prioritised register with owners, a RAG status and the top 3 actions for the week, not a summary.</li>
+        <li><b>Easy to plug in:</b> the JSON output can feed a Jira sync, a weekly exec email or a delivery-health dashboard.</li>
+      </ul>
+      <h2 class="sec" style="margin-top:18px">Where it would go next</h2>
+      <p style="font-size:14px;margin-bottom:0">Native connectors (Slack, Jira and Confluence APIs) → scheduled runs → a diff against the last run to flag <i>new</i> and <i>escalating</i> risks → a drafted weekly stakeholder update, with the register posted to the program's single source of truth.</p>
+    </div>
+  </section>
+</div>
+
+<script id="data" type="application/json">{"program": {"name": "Project Meridian: Surge 2.0, maps and payments re-platform", "vertical": "Northwind Rides", "target_go_live": "2026-07-15", "as_of": "2026-06-05", "description": "Cross-functional program covering a new dynamic-pricing engine (Surge 2.0), a move to a third-party maps and ETA provider, and integration of a new regional payment service provider (PSP). Several external API and third-party dependencies carry SLA and rollback implications.", "note": "All data below is synthetic and made up for this demo. Northwind Rides is a fictional company, and the people and vendors are fictional too."}, "updates": [{"id": "U-001", "source": "Slack #meridian-eng", "author": "Lina (Backend Lead)", "timestamp": "2026-06-05T09:12:00+04:00", "text": "Heads up: the new maps and ETA provider (Mapping vendor A) is still returning 5xx on ~3% of route requests in our staging load test. Their on-call says it's a capacity issue on their side and they 'should' have more headroom by next week. We have no contractual SLA signed yet, just a draft. If this isn't fixed we cannot start the canary for Surge 2.0 because pricing depends on ETA accuracy."}, {"id": "U-002", "source": "Standup notes", "author": "Omar (PSP Integration)", "timestamp": "2026-06-04T17:40:00+04:00", "text": "Payments provider B sandbox is up. Refund webhook is flaky: about 1 in 10 refund callbacks never arrive, so our reconciliation job double-counts. Their engineers confirmed it's a known bug, fix ETA 'end of June'. That's after our go-live freeze starts (June 28). Need a decision on whether we build an idempotency/retry shim on our side."}, {"id": "U-003", "source": "Jira MER-482", "author": "QA Automation", "timestamp": "2026-06-03T14:05:00+04:00", "text": "Surge 2.0 pricing engine: regression suite at 76% pass. 14 failing cases all relate to surge caps in the Ramadan and public holiday calendar config. Product hasn't finalised the holiday multiplier table for the two new markets. Blocked on product sign-off."}, {"id": "U-004", "source": "Email from Mapping vendor A", "author": "Mapping vendor A, Partnerships", "timestamp": "2026-06-02T11:00:00+04:00", "text": "Per our last call, the mutual NDA is signed but the integration MSA and SLA (99.9% availability, P50 latency < 300ms) are still with your legal team. We cannot commit to production support tiers until the MSA is countersigned. Our standard support is best-effort until then."}, {"id": "U-005", "source": "Slack #meridian-data", "author": "Priya (Data/Analytics)", "timestamp": "2026-06-05T08:30:00+04:00", "text": "Surge 2.0 A/B dashboard is built but I'm pulling ETA from the OLD maps pipeline. If we cut over to Mapping vendor A the historical baseline breaks and we lose week-over-week comparability for the launch readout. Either we backfill (2 to 3 days of work) or the exec readout has a gap."}, {"id": "U-006", "source": "Standup notes", "author": "Sara (Mobile, Driver app)", "timestamp": "2026-06-04T10:15:00+04:00", "text": "Driver app build with the new surge UI passed internal QA. BUT iOS App Store review historically takes 3 to 5 days and we need both the Driver and Rider apps approved before go-live. We haven't submitted yet because the surge copy isn't localised for Arabic and French. The localisation vendor returns strings in ~4 working days."}, {"id": "U-007", "source": "Slack #meridian-sre", "author": "Tarek (SRE)", "timestamp": "2026-06-05T07:50:00+04:00", "text": "Rollback plan question: if Surge 2.0 misbehaves in prod, our feature flag flips pricing back to v1 in seconds, which is fine. But the PSP and maps cutovers are NOT flag-gated; they're config changes that take ~20 min to revert and need a vendor-side cache flush. So our blast radius for those two is much bigger. We should not bundle all three cutovers in one go-live window."}, {"id": "U-008", "source": "Meeting: steering review", "author": "PM (Product)", "timestamp": "2026-06-03T16:00:00+04:00", "text": "Commercial wants Surge 2.0 live before Eid for the demand peak. Eng comfort is 'July, maybe'. Finance flagged that the Payments provider B fee schedule isn't finalised, which affects unit economics modelling. Also we still don't have a named incident owner for cross-vendor outages: is it us, Mapping vendor A or Payments provider B at 3am?"}, {"id": "U-009", "source": "Jira MER-501", "author": "Security", "timestamp": "2026-06-02T09:30:00+04:00", "text": "PSP integration needs a security review (PCI scope) before prod. The review queue is 2 weeks. We submitted the threat model yesterday. If they find issues, remediation could push go-live. This is on the critical path and not currently reflected in the plan."}, {"id": "U-010", "source": "Slack #meridian-eng", "author": "Lina (Backend Lead)", "timestamp": "2026-06-01T13:20:00+04:00", "text": "Good news: load test on the pricing engine itself hit 12k req/s with P99 at 180ms, well within budget. The engine is solid. Our risk is all in the external integrations and sign-offs, not the core code."}]}</script>
+<script id="analysis" type="application/json">{"rag_status": "RED", "executive_summary": "Project Meridian's core pricing engine is solid (12k req/s, P99 180ms), but go-live is at risk: every material threat sits in the external integrations and sign-offs, not the code. Two third-party vendors (Mapping vendor A, Payments provider B) have unresolved reliability bugs with fixes landing after our June 28 freeze, the Mapping vendor A SLA/MSA is still unsigned, a PCI security review is on the critical path but missing from the plan, and no incident owner is named for cross-vendor 3am outages. Recommend de-bundling the three cutovers and treating the July 15 date as at risk pending vendor commitments.", "headline_metrics": {"p1_count": 6, "blockers": 2, "third_party_items": 7, "items_on_critical_path": 7}, "items": [{"title": "Mapping vendor A returning 5xx on ~3% of requests blocks the Surge 2.0 canary", "type": "BLOCKER", "severity": "P1", "owner": "Lina (Backend Lead) / Mapping vendor A on-call", "is_third_party": true, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": "No MSA/SLA signed, so vendor support is best-effort only. Pricing accuracy depends on ETA, so vendor instability directly gates the canary and there is no contractual remedy if it persists.", "recommended_action": "Get a written stability commitment and date from Mapping vendor A before scheduling the canary; set an internal error-rate threshold (<0.5%) as the gate.", "confidence": 0.9, "source_ids": ["U-001"], "linked_ids": ["U-004"]}, {"title": "Payments provider B refund webhook drops ~10% of callbacks; vendor fix lands after our freeze", "type": "RISK", "severity": "P1", "owner": "Omar (PSP Integration)", "is_third_party": true, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": "Vendor fix ETA 'end of June' falls after the June 28 go-live freeze, and reverting the PSP cutover is a config change (~20 min) needing a vendor-side cache flush, not a flag flip. Reconciliation double-counts in the meantime.", "recommended_action": "Build an idempotency/retry reconciliation shim on our side this sprint rather than depending on the vendor fix landing before freeze.", "confidence": 0.88, "source_ids": ["U-002"], "linked_ids": ["U-007"]}, {"title": "Mapping vendor A MSA/SLA (99.9% / P50<300ms) unsigned, so no production support tier", "type": "DEPENDENCY", "severity": "P1", "owner": "Legal (inferred) / Mapping vendor A Partnerships", "is_third_party": true, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": "Until the MSA is countersigned the vendor will not commit production support tiers or the 99.9% availability SLA. We would launch on a critical dependency with no contractual uptime or escalation path.", "recommended_action": "Escalate the MSA to legal as a go-live gate this week; do not schedule production cutover until countersigned.", "confidence": 0.85, "source_ids": ["U-004"], "linked_ids": ["U-001"]}, {"title": "No named incident owner for cross-vendor (Mapping vendor A / Payments provider B) outages", "type": "RISK", "severity": "P1", "owner": "Program / PM (inferred)", "is_third_party": true, "affects_go_live": true, "on_critical_path": false, "sla_or_rollback_note": "The incident-ownership boundary is undefined across three organisations. At 3am it is unclear whether Northwind Rides, Mapping vendor A or Payments provider B leads triage, which will extend MTTR during a launch-window incident.", "recommended_action": "Define a cross-vendor incident RACI and escalation matrix; circulate before go-live sign-off and rehearse in a game-day.", "confidence": 0.82, "source_ids": ["U-008"], "linked_ids": []}, {"title": "PCI security review on critical path but missing from the plan", "type": "DEPENDENCY", "severity": "P1", "owner": "Security", "is_third_party": false, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": null, "recommended_action": "Add the 2-week PCI review (plus remediation buffer) to the critical path now and confirm the queue slot; treat any findings as a go-live gate.", "confidence": 0.86, "source_ids": ["U-009"], "linked_ids": []}, {"title": "Three cutovers (Surge, maps, PSP) bundled into one go-live window inflates blast radius", "type": "RISK", "severity": "P1", "owner": "Tarek (SRE)", "is_third_party": true, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": "Surge rolls back via feature flag in seconds, but maps and PSP are config cutovers (~20 min) needing a vendor-side cache flush. Bundling them means one failure forces a slow, multi-vendor rollback.", "recommended_action": "De-bundle the go-live: ship Surge 2.0 behind its flag first, then sequence the maps and PSP cutovers in separate windows with independent rollback runbooks.", "confidence": 0.91, "source_ids": ["U-007"], "linked_ids": ["U-002"]}, {"title": "Surge regression blocked on unfinalised Ramadan and public holiday multiplier table", "type": "BLOCKER", "severity": "P2", "owner": "Product (PM)", "is_third_party": false, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": null, "recommended_action": "Get Product to sign off the holiday multiplier table for both new markets this week to unblock the 14 failing regression cases.", "confidence": 0.8, "source_ids": ["U-003"], "linked_ids": []}, {"title": "App Store review and Arabic/French localisation lead times threaten the launch date", "type": "RISK", "severity": "P2", "owner": "Sara (Mobile, Driver app)", "is_third_party": true, "affects_go_live": true, "on_critical_path": true, "sla_or_rollback_note": "iOS App Store review (3 to 5 days, external) stacks on top of a ~4-day localisation vendor turnaround: two serial external lead times that are easy to underestimate against July 15.", "recommended_action": "Pull localisation forward now and submit both apps to review immediately after; track the combined ~9-day lead time on the critical path.", "confidence": 0.78, "source_ids": ["U-006"], "linked_ids": []}, {"title": "Maps cutover breaks the A/B baseline used for the exec launch readout", "type": "RISK", "severity": "P3", "owner": "Priya (Data/Analytics)", "is_third_party": false, "affects_go_live": false, "on_critical_path": false, "sla_or_rollback_note": null, "recommended_action": "Schedule the 2 to 3 day ETA baseline backfill before cutover so the launch readout keeps week-over-week comparability.", "confidence": 0.72, "source_ids": ["U-005"], "linked_ids": ["U-001"]}, {"title": "Payments provider B fee schedule unfinalised, so unit-economics modelling is incomplete", "type": "DEPENDENCY", "severity": "P3", "owner": "Finance", "is_third_party": true, "affects_go_live": false, "on_critical_path": false, "sla_or_rollback_note": "Commercial terms with the PSP are unsettled, so unit economics for the launch business case cannot be locked.", "recommended_action": "Chase Payments provider B for the final fee schedule so Finance can close the unit-economics model before the steering decision.", "confidence": 0.7, "source_ids": ["U-008"], "linked_ids": ["U-002"]}], "top_3_actions_this_week": ["De-bundle the go-live and sequence the three cutovers: Surge (behind its flag) first, then maps and PSP in separate windows with independent rollback runbooks.", "Escalate the Mapping vendor A MSA/SLA and a written stability commitment to legal and the vendor as a hard go-live gate.", "Add the PCI security review to the critical path and ship the Payments provider B idempotency/reconciliation shim so neither vendor's slip blocks launch."]}</script>
+<script id="prompt" type="application/json">{"text": "# Risk Radar: the prompt\n\nThis is the prompt that powers the workflow. It is not tied to one model (tested with\nClaude); paste it as the system prompt and send the raw updates as the user message.\nIt is written to (1) force a structured, auditable schema, (2) reason about\n**third-party, SLA and rollback** implications explicitly, and (3) refuse to invent\nfacts (every item must trace back to a source update).\n\n---\n\n## System prompt\n\nYou are **Risk Radar**, an assistant to a senior Technical Program Manager in the\nNorthwind Rides product organisation. You take raw, messy program updates from many\nsources (Slack, standups, Jira, vendor emails, meeting notes) and turn them into a\nsingle structured risk register that a program lead can act on.\n\nYour job is to surface **risks, dependencies and blockers EARLY**, before they hit\nthe critical path, with special attention to **third-party and external API\nintegrations**, because those carry SLA, incident-ownership and rollback\nimplications that cross organisational boundaries.\n\n### Rules\n1. **Ground every item in evidence.** Each flagged item must cite the `source_ids` of\n   the update(s) it came from. Never invent facts, dates, names or numbers that are\n   not present in or directly inferable from the input.\n2. **Classify** each item as exactly one `type`: `RISK` (could go wrong),\n   `DEPENDENCY` (we are waiting on someone or something) or `BLOCKER` (actively\n   stopping progress now).\n3. **Score severity** `P1` to `P4`:\n   - P1 = threatens the go-live date or causes customer or financial impact; on the critical path.\n   - P2 = significant, needs action this week.\n   - P3 = manageable, monitor.\n   - P4 = minor or informational.\n4. For each item set boolean flags: `is_third_party`, `affects_go_live`,\n   `on_critical_path`. If `is_third_party` is true, you MUST populate\n   `sla_or_rollback_note` describing the SLA, incident-ownership or rollback\n   implication across the organisation boundary.\n5. Assign a likely `owner` (use the author or team named in the source if present;\n   otherwise infer the most plausible accountable role and mark it with a trailing\n   \"(inferred)\").\n6. Give one concrete, imperative `recommended_action`: what the PM should do next.\n7. Set `confidence` from 0.0 to 1.0 to reflect how strongly the evidence supports the item.\n8. Detect **cross-update connections**: if two updates compound into a bigger risk\n   (for example a vendor delay plus a freeze date), note it in `linked_ids`.\n9. Compute an overall program `rag_status` (GREEN, AMBER or RED) and a 2 to 3 sentence\n   `executive_summary` written for a VP audience: clear, calm, specific, no filler.\n\n### Output\nReturn ONLY valid JSON matching this schema (no markdown, no preamble):\n\n```json\n{\n  \"rag_status\": \"RED | AMBER | GREEN\",\n  \"executive_summary\": \"string\",\n  \"headline_metrics\": {\n    \"p1_count\": 0, \"blockers\": 0, \"third_party_items\": 0, \"items_on_critical_path\": 0\n  },\n  \"items\": [\n    {\n      \"title\": \"string\",\n      \"type\": \"RISK | DEPENDENCY | BLOCKER\",\n      \"severity\": \"P1 | P2 | P3 | P4\",\n      \"owner\": \"string\",\n      \"is_third_party\": true,\n      \"affects_go_live\": true,\n      \"on_critical_path\": true,\n      \"sla_or_rollback_note\": \"string or null\",\n      \"recommended_action\": \"string\",\n      \"confidence\": 0.0,\n      \"source_ids\": [\"U-00X\"],\n      \"linked_ids\": [\"U-00Y\"]\n    }\n  ],\n  \"top_3_actions_this_week\": [\"string\", \"string\", \"string\"]\n}\n```\n\nOrder `items` by severity (P1 first), then with `affects_go_live` true first.\n\n---\n\n## User message (template)\n\n```\nPROGRAM: {{program_name}}\nTARGET GO-LIVE: {{date}}   AS OF: {{today}}\n\nRAW UPDATES:\n{{paste the updates here, one per line, prefixed with their id and source}}\n```\n"}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const ANALYSIS = JSON.parse(document.getElementById('analysis').textContent);
+const PROMPT = JSON.parse(document.getElementById('prompt').textContent);
+const $ = s => document.querySelector(s);
+
+document.getElementById('asof').textContent = 'as of ' + DATA.program.as_of + ' · go-live ' + DATA.program.target_go_live;
+
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('view-'+t.dataset.view).classList.add('active');
+});
+
+// ---- render radar ----
+function renderAnalysis(a, mountId){
+  const root = mountId ? document.getElementById(mountId) : null;
+  if(!root){
+    $('#ragVal').textContent = a.rag_status;
+    $('#ragVal').className = 'rag-val ' + a.rag_status;
+    $('#execSummary').textContent = a.executive_summary;
+    const m = a.headline_metrics;
+    $('#metrics').innerHTML = `
+      <div class="metric alert"><div class="n">${m.p1_count}</div><div class="l">P1 items</div></div>
+      <div class="metric"><div class="n">${m.blockers}</div><div class="l">Active blockers</div></div>
+      <div class="metric"><div class="n">${m.third_party_items}</div><div class="l">3rd-party items</div></div>
+      <div class="metric"><div class="n">${m.items_on_critical_path}</div><div class="l">On critical path</div></div>`;
+    $('#topActions').innerHTML = a.top_3_actions_this_week.map(x=>`<li>${esc(x)}</li>`).join('');
+    window.__ITEMS = a.items;
+    renderItems('all');
+    return;
+  }
+  // live result
+  const m = a.headline_metrics||{};
+  root.innerHTML = `
+    <div class="rag"><div class="ragbox status"><div class="rag-label">Health</div>
+      <div class="rag-val ${a.rag_status}">${a.rag_status}</div></div>
+      <div class="ragbox"><div class="rag-label">Executive summary</div>
+      <div class="summary" style="margin-top:6px">${esc(a.executive_summary||'')}</div></div></div>
+    <div class="metrics">
+      <div class="metric alert"><div class="n">${m.p1_count??'n/a'}</div><div class="l">P1 items</div></div>
+      <div class="metric"><div class="n">${m.blockers??'n/a'}</div><div class="l">Blockers</div></div>
+      <div class="metric"><div class="n">${m.third_party_items??'n/a'}</div><div class="l">3rd-party</div></div>
+      <div class="metric"><div class="n">${m.items_on_critical_path??'n/a'}</div><div class="l">Critical path</div></div>
+    </div>
+    ${(a.top_3_actions_this_week||[]).length?`<div class="topactions"><h3>▶ Top 3 actions this week</h3><ol>${a.top_3_actions_this_week.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>`:''}
+    <div id="liveItems"></div>`;
+  root.querySelector('#liveItems').innerHTML = (a.items||[]).map(itemHTML).join('');
+}
+
+function itemHTML(it){
+  const conf = Math.round((it.confidence||0)*100);
+  return `<div class="item ${it.severity}">
+    <div class="item-head">
+      <span class="badge sev ${it.severity}">${it.severity}</span>
+      <span class="badge type ${it.type}">${it.type}</span>
+      ${it.is_third_party?`<span class="badge tp">3RD-PARTY</span>`:''}
+      <span class="item-title">${esc(it.title)}</span>
+    </div>
+    <div class="meta">
+      <span>Owner: <b>${esc(it.owner||'not named')}</b></span>
+      <span>Go-live impact: <b>${it.affects_go_live?'Yes':'No'}</b></span>
+      <span>Critical path: <b>${it.on_critical_path?'Yes':'No'}</b></span>
+    </div>
+    ${it.sla_or_rollback_note?`<div class="sla">⚖️ <b>SLA / rollback:</b> ${esc(it.sla_or_rollback_note)}</div>`:''}
+    <div class="action"><span class="k">→ Recommended:</span> ${esc(it.recommended_action||'')}</div>
+    <div class="trace">Source: ${(it.source_ids||[]).map(s=>`<code>${esc(s)}</code>`).join(' ')}${(it.linked_ids&&it.linked_ids.length)?' · linked: '+it.linked_ids.map(s=>`<code>${esc(s)}</code>`).join(' '):''} · confidence ${conf}%</div>
+    <div class="conf"><i style="width:${conf}%"></i></div>
+  </div>`;
+}
+
+function renderItems(filter){
+  const items = (window.__ITEMS||[]).filter(it=>{
+    if(filter==='all') return true;
+    if(filter==='P1') return it.severity==='P1';
+    if(filter==='BLOCKER') return it.type==='BLOCKER';
+    if(filter==='thirdparty') return it.is_third_party;
+    if(filter==='golive') return it.affects_go_live;
+  });
+  $('#items').innerHTML = items.map(itemHTML).join('') || '<p class="muted">No items match this filter.</p>';
+}
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); renderItems(c.dataset.f);
+});
+
+// ---- feed ----
+$('#feed').innerHTML = DATA.updates.map(u=>`
+  <div class="feed">
+    <span class="ts">${esc(u.timestamp.replace('T',' ').slice(0,16))}</span>
+    <span class="src">${esc(u.source)}</span><span class="who">${esc(u.author)}</span>
+    <div class="body">${esc(u.text)}</div>
+    <div class="fid">${esc(u.id)}</div>
+  </div>`).join('');
+
+// ---- prompt ----
+$('#promptBox').textContent = PROMPT.text;
+
+// ---- live ----
+function buildUserMsg(raw){
+  return `PROGRAM: ${DATA.program.name}\nTARGET GO-LIVE: ${DATA.program.target_go_live}   AS OF: ${DATA.program.as_of}\n\nRAW UPDATES:\n${raw}`;
+}
+function sampleRaw(){
+  return DATA.updates.map(u=>`[${u.id}] (${u.source}, ${u.author}) ${u.text}`).join('\n');
+}
+$('#loadSample').onclick = ()=>{ $('#liveInput').value = sampleRaw(); };
+
+// The key lives only in this variable for the life of the tab.
+// It is never written to localStorage, sessionStorage, cookies or the URL.
+let apiKey = '';
+$('#apiKey').addEventListener('input', e => { apiKey = e.target.value.trim(); });
+
+$('#runBtn').onclick = async ()=>{
+  const key = apiKey || $('#apiKey').value.trim();
+  const err = $('#liveErr'); err.textContent='';
+  $('#liveResult').innerHTML='';
+  if(!key){ err.textContent='Enter an Anthropic API key to run live, or browse the pre-computed Risk Radar tab.'; return; }
+  let raw = $('#liveInput').value.trim() || sampleRaw();
+  const btn = $('#runBtn'); btn.disabled=true; btn.textContent='Running…';
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:$('#model').value,
+        max_tokens:4000,
+        system:PROMPT.text,
+        messages:[{role:'user',content:buildUserMsg(raw)}]
+      })
+    });
+    if(!res.ok){ throw new Error('API '+res.status+': '+(await res.text()).slice(0,300)); }
+    const data = await res.json();
+    let txt = (data.content||[]).map(c=>c.text||'').join('');
+    txt = txt.replace(/^```json\s*/i,'').replace(/```\s*$/,'').trim();
+    const start=txt.indexOf('{'), end=txt.lastIndexOf('}');
+    const parsed = JSON.parse(txt.slice(start,end+1));
+    renderAnalysis(parsed,'liveResult');
+  }catch(e){
+    err.innerHTML = 'Error: '+esc(e.message)+'<div class="note">Browser CORS rules or rate limits can block direct calls. The pre-computed Risk Radar tab shows the same output with no key.</div>';
+  }finally{ btn.disabled=false; btn.textContent='Run Risk Radar →'; }
+};
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+renderAnalysis(ANALYSIS);
+</script>
+</body>
+</html>
